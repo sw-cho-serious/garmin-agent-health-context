@@ -89,5 +89,27 @@ function getGarminSummary() {
 }
 ```
 
+## 🌐 進階玩法：部署成免費 Webhook 給其他 AI 代理呼叫
+
+因為 Google Apps Script 本質上就是一個免費的無狀態 HTTPS 伺服器，你也可以把它部署成 Web App，直接給 **n8n、Make、Dify、Coze、ChatGPT Custom GPT 或其他雲端 AI Agent** 當作外部工具呼叫：
+
+1. 在「專案設定 ➔ 指令碼屬性」多新增一組：`WEBHOOK_SECRET`（填入一串高強度隨機密碼，防止陌生人讀取你的體徵）。
+2. [`garmin-health.js`](./garmin-health.js) 已內建 `doGet(e)` Webhook 入口：
+```javascript
+function doGet(e) {
+  const secret = PropertiesService.getScriptProperties().getProperty('WEBHOOK_SECRET');
+  if (!secret || e?.parameter?.secret !== secret) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Unauthorized' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  return ContentService.createTextOutput(JSON.stringify({
+    ok: true,
+    summary: getGarminSummary()
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+```
+3. 點右上角 **部署 ➔ 新增部署 ➔ 網頁應用程式**（執行身分：`我`、誰可以存取：`所有人`），之後只要呼叫以下網址就能拿到 JSON：
+   `GET https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?secret=<你的WEBHOOK_SECRET>`
+
 ## 📄 License
-MIT License
+[MIT License](./LICENSE)

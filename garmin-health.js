@@ -69,3 +69,19 @@ function getGarminSummary() {
   cache.put('GARMIN_SUMMARY_V2', summary, 900); // 快取 15 分鐘
   return summary;
 }
+
+/**
+ * 🌐 選配：部署為 Web App 後供外部 AI Agent / n8n / Webhook 呼叫
+ * 需先於指令碼屬性設定 WEBHOOK_SECRET
+ */
+function doGet(e) {
+  const secret = PropertiesService.getScriptProperties().getProperty('WEBHOOK_SECRET');
+  if (!secret || e?.parameter?.secret !== secret) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Unauthorized' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  return ContentService.createTextOutput(JSON.stringify({
+    ok: true,
+    summary: getGarminSummary()
+  })).setMimeType(ContentService.MimeType.JSON);
+}

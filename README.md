@@ -95,5 +95,27 @@ function getGarminSummary() {
 
 > Note: Adjust `tz` (default `Asia/Taipei`) and the summary string format in [`garmin-health.js`](./garmin-health.js) to match your preferred timezone and language.
 
+## 🌐 Optional: Expose as a Serverless Webhook for Other AI Agents
+
+Because Google Apps Script can be deployed as a stateless HTTPS Web App, you can also expose `garmin-health.js` as a zero-cost JSON endpoint for **n8n, Make, Dify, Coze, ChatGPT Actions, or custom AI agents**:
+
+1. In **Project Settings → Script Properties**, add `WEBHOOK_SECRET` with a strong random token.
+2. [`garmin-health.js`](./garmin-health.js) already includes a `doGet(e)` handler:
+```javascript
+function doGet(e) {
+  const secret = PropertiesService.getScriptProperties().getProperty('WEBHOOK_SECRET');
+  if (!secret || e?.parameter?.secret !== secret) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Unauthorized' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  return ContentService.createTextOutput(JSON.stringify({
+    ok: true,
+    summary: getGarminSummary()
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+```
+3. Click **Deploy → New deployment → Web app** (*Execute as: Me*, *Who has access: Anyone*), then call:
+   `GET https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?secret=<YOUR_WEBHOOK_SECRET>`
+
 ## 📄 License
 [MIT License](./LICENSE)
