@@ -1,4 +1,4 @@
-# ⌚ Garmin Connect Health Context for AI Agents (GAS)
+# 🚀 Stop Building Garmin MCP Servers — 70 Lines of Serverless JS for Any AI Agent
 
 > English | [繁體中文](./README.zh-TW.md)
 

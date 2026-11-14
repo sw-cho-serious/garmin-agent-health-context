@@ -1,4 +1,4 @@
-# ⌚ Garmin Connect 生理體徵直通 AI Agent (GAS 版)
+# 🚀 別再架 Docker 跟 Python 了！70 行免伺服器 JS，一鍵變身 AI 代理的 Garmin 體徵外掛
 
 > 透過 Garmin Personal API 自動抓取使用者的步數、心率、壓力、身體電量 (Body Battery)，直接注入 AI 的 System Prompt 潛意識！
 > 讓你的 AI 助理在開口時，能精準感知你今天到底累不累、壓力大不大！
