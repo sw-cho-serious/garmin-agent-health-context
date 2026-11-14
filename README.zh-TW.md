@@ -24,6 +24,13 @@
   - `getGarminSummary()`（輕量版）：`[2026-11-14] 步數 6500｜靜息心率 58｜壓力 22｜身體電量 78/95`
   - `getGarminFullContext()`（旗艦版）：`[2026-11-14] 步數 6500｜消耗 2100 kcal｜電量 78/95｜昨晚睡眠 7.2h (82分)｜HRV 55 ms (BALANCED)｜最近運動: Strength 55min`
 
+## 🔌 已核對的官方 Garmin Personal API 端點
+- `POST /personalapitoken-service/personal-api/personal-api-key/token` — 換取 Bearer Token
+- `GET /usersummary-service/v2/dailysummaries?startDate=...&endDate=...` — 步數、靜息心率、壓力、卡路里、身體電量
+- `GET /sleep-service/sleep/dailySleep?date=...` — 睡眠時長與分數
+- `GET /hrv-service/hrv/daily/{fromDate}/{toDate}` — 夜間 HRV 均值與狀態
+- `GET /activitylist-service/activities/search/activities?start=0&limit=1` — 最近一筆運動紀錄
+
 ---
 
 ## 🔑 事前準備

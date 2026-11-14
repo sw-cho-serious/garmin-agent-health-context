@@ -17,12 +17,21 @@ This repo provides **two ready-to-use versions** depending on your architecture:
 
 ---
 
-## ✨ Features
+## ✨ Features & Sample Outputs
 - **Auto-Refreshing Token Cache**: Caches the Bearer token for 6 hours and automatically retries on HTTP `401`.
 - **Low-Overhead Polling**: Caches health summaries for 15 minutes to respect Garmin rate limits.
 - **Two Output Modes**:
-  - `getGarminSummary()` (Lightweight): `[2026-11-14] 步數 6500｜靜息心率 58｜壓力 22｜身體電量 78/95`
-  - `getGarminFullContext()` (Flagship): `[2026-11-14] 步數 6500｜消耗 2100 kcal｜電量 78/95｜昨晚睡眠 7.2h (82分)｜HRV 55 ms (BALANCED)｜最近運動: Strength 55min`
+  - `getGarminSummary()` (Lightweight):  
+    `[2026-11-14] Steps 6500 | RHR 58 | Stress 22 | Body Battery 78/95`
+  - `getGarminFullContext()` (Flagship):  
+    `[2026-11-14] Steps 6500 | Burned 2100 kcal | Body Battery 78/95 | Sleep 7.2h (Score 82) | HRV 55 ms (BALANCED) | Recent Workout: Strength 55min`
+
+## 🔌 Verified Garmin Personal API Endpoints Used
+- `POST /personalapitoken-service/personal-api/personal-api-key/token` — Exchange API key for Bearer token
+- `GET /usersummary-service/v2/dailysummaries?startDate=...&endDate=...` — Steps, RHR, Stress, Calories, Body Battery
+- `GET /sleep-service/sleep/dailySleep?date=...` — Sleep duration & overall sleep score
+- `GET /hrv-service/hrv/daily/{fromDate}/{toDate}` — Overnight HRV average & status
+- `GET /activitylist-service/activities/search/activities?start=0&limit=1` — Latest workout summary
 
 ---
 
@@ -70,7 +79,7 @@ Example JSON response:
 {
   "ok": true,
   "mode": "summary",
-  "summary": "[2026-11-14] 步數 6500｜靜息心率 58｜壓力 22｜身體電量 78/95"
+  "summary": "[2026-11-14] Steps 6500 | RHR 58 | Stress 22 | Body Battery 78/95"
 }
 ```
 

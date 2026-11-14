@@ -84,6 +84,7 @@ function fetchGarminApi_(endpoint) {
   }
 
   if (res.getResponseCode() !== 200) {
+    console.warn(`Garmin API [${res.getResponseCode()}] ${endpoint}: ${res.getContentText()}`);
     return null;
   }
 
@@ -155,11 +156,15 @@ function getGarminFullContext() {
     console.warn('Summaries fetch failed: ' + e.message);
   }
 
-  // 2. Sleep Data (Duration & Score)
+  // 2. Sleep Data (Duration & Score) - DailySleepDTO is top-level in Personal API
   let sleepText = '-';
   try {
-    const sleepData = fetchGarminApi_(`/sleep-service/sleep/dailySleep?date=${today}`);
-    const dto = sleepData?.dailySleepDTO;
+    let sleepData = fetchGarminApi_(`/sleep-service/sleep/dailySleep?date=${today}`);
+    let dto = sleepData?.dailySleepDTO || sleepData;
+    if (!dto?.sleepTimeSeconds) {
+      sleepData = fetchGarminApi_(`/sleep-service/sleep/dailySleep?date=${yesterday}`);
+      dto = sleepData?.dailySleepDTO || sleepData;
+    }
     if (dto && dto.sleepTimeSeconds) {
       const hours = (dto.sleepTimeSeconds / 3600).toFixed(1);
       const score = dto.sleepScores?.overall?.value ?? '-';
@@ -169,11 +174,12 @@ function getGarminFullContext() {
     console.warn('Sleep fetch failed: ' + e.message);
   }
 
-  // 3. Overnight HRV
+  // 3. Overnight HRV - HrvDailySummaryDTO returns hrvSummaries[]
   let hrvText = '-';
   try {
-    const hrvData = fetchGarminApi_(`/hrv-service/hrv/daily/${today}/${today}`);
-    const hrv = hrvData?.hrvSummary;
+    const hrvData = fetchGarminApi_(`/hrv-service/hrv/daily/${yesterday}/${today}`);
+    const hrvList = hrvData?.hrvSummaries || [];
+    const hrv = hrvList[hrvList.length - 1] || hrvData?.hrvSummary;
     if (hrv && hrv.lastNightAvg) {
       const status = hrv.status ? ` (${hrv.status})` : '';
       hrvText = `${hrv.lastNightAvg} ms${status}`;
