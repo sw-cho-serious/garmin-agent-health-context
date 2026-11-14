@@ -1,121 +1,80 @@
-# 🚀 Stop Building Garmin MCP Servers — 70 Lines of Serverless JS for Any AI Agent
+# 🚀 Stop Building Garmin MCP Servers — 2 Serverless GAS Versions for Any AI Agent
 
 > English | [繁體中文](./README.zh-TW.md)
 
-Pull real-time health metrics — **Steps, Resting Heart Rate, Stress, and Body Battery** — from the official **Garmin Personal API** and inject them straight into your AI Agent's System Prompt as a compact one-liner.  
-Let your AI assistant naturally sense how tired or stressed you are before it even says hello.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Google Apps Script](https://img.shields.io/badge/Runtime-Google%20Apps%20Script-green.svg)](#)
+[![Garmin Personal API](https://img.shields.io/badge/API-Garmin%20Personal%20API-007cc3.svg)](https://developer.garmin.com/gc-developer-program/personal/)
+
+Pull real-time health metrics from the official **Garmin Personal API** — **Steps, RHR, Stress, Body Battery, Calories, Sleep, HRV, and Recent Workouts** — using **100% free, zero-server Google Apps Script**.
+
+This repo provides **two ready-to-use versions** depending on your architecture:
+
+| Version | Files | Best For |
+| :--- | :--- | :--- |
+| **1. LINE Bot / Direct GAS** | [`garmin-health.js`](./garmin-health.js) | Injecting health context directly into your LINE Bot / GAS LLM `systemPrompt` (no `doGet` conflict) |
+| **2. Serverless Webhook API** | [`garmin-health.js`](./garmin-health.js) + [`garmin-webhook.js`](./garmin-webhook.js) | Exposing a free HTTPS JSON endpoint for **n8n, Make, Dify, Coze, ChatGPT Actions, or external AI agents** |
+
+---
 
 ## ✨ Features
 - **Auto-Refreshing Token Cache**: Caches the Bearer token for 6 hours and automatically retries on HTTP `401`.
-- **Low-Overhead Polling**: Caches health summaries for 15 minutes to avoid hammering Garmin's endpoints.
-- **One-Line System Prompt Injection**: Outputs a clean, token-efficient summary string like:  
-  `[2026-11-14] 步數 6500｜靜息心率 58｜壓力 22｜身體電量 78/95`
+- **Low-Overhead Polling**: Caches health summaries for 15 minutes to respect Garmin rate limits.
+- **Two Output Modes**:
+  - `getGarminSummary()` (Lightweight): `[2026-11-14] 步數 6500｜靜息心率 58｜壓力 22｜身體電量 78/95`
+  - `getGarminFullContext()` (Flagship): `[2026-11-14] 步數 6500｜消耗 2100 kcal｜電量 78/95｜昨晚睡眠 7.2h (82分)｜HRV 55 ms (BALANCED)｜最近運動: Strength 55min`
+
+---
 
 ## 🔑 Prerequisites
 1. Generate your personal `GARMIN_PERSONAL_API_KEY` from **Garmin Connect Web → Settings → Personal API Key**.
 2. In your Google Apps Script project, go to **Project Settings → Script Properties** and add:
-   - Property: `GARMIN_PERSONAL_API_KEY`
-   - Value: `<your-api-key>`
+   - `GARMIN_PERSONAL_API_KEY`: `<your-api-key>`
 
-## 💻 Source Code ([`garmin-health.js`](./garmin-health.js))
+---
+
+## 🤖 Version 1: LINE Bot / Direct GAS Integration
+
+1. Copy [`garmin-health.js`](./garmin-health.js) into your existing LINE Bot GAS project (it intentionally omits `doGet`/`doPost` so it won't collide with your bot's webhook).
+2. Inject it into your LLM System Prompt:
 
 ```javascript
-/**
- * ⌚ Garmin Watch Real-Time Health Metrics Module (GAS)
- */
+// Lightweight mode (Steps, RHR, Stress, Body Battery)
+const healthContext = getGarminSummary();
 
-function getGarminToken_(forceRefresh) {
-  const cache = CacheService.getScriptCache();
-  if (!forceRefresh) {
-    const cached = cache.get('GARMIN_ACCESS_TOKEN');
-    if (cached) return cached;
-  }
+// Or Flagship mode (adds Calories, Sleep, HRV, Recent Workout)
+// const healthContext = getGarminFullContext();
 
-  const apiKey = PropertiesService.getScriptProperties().getProperty('GARMIN_PERSONAL_API_KEY');
-  if (!apiKey) throw new Error('Missing GARMIN_PERSONAL_API_KEY in ScriptProperties');
+systemPrompt += `\n\n[User Real-Time Biometrics]\n${healthContext}`;
+```
 
-  const res = UrlFetchApp.fetch(
-    'https://personal.connectapi.garmin.com/personalapitoken-service/personal-api/personal-api-key/token',
-    { method: 'post', headers: { 'Authorization': 'ApiKey ' + apiKey }, muteHttpExceptions: true }
-  );
-  if (res.getResponseCode() !== 200) throw new Error('Garmin token exchange failed: ' + res.getContentText());
+---
 
-  let token = res.getContentText().trim();
-  try {
-    const parsed = JSON.parse(token);
-    token = parsed.access_token || parsed.token || token;
-  } catch (e) {}
+## 🌐 Version 2: Serverless Webhook Server (for External AI Agents)
 
-  cache.put('GARMIN_ACCESS_TOKEN', token, 21600); // Cache for 6 hours
-  return token;
-}
+Turn GAS into a $0 stateless HTTPS API server:
 
-function getGarminSummary() {
-  const cache = CacheService.getScriptCache();
-  const cachedSummary = cache.get('GARMIN_SUMMARY_V2');
-  if (cachedSummary) return cachedSummary;
+1. Create a standalone Google Apps Script project and add both [`garmin-health.js`](./garmin-health.js) and [`garmin-webhook.js`](./garmin-webhook.js).
+2. In **Project Settings → Script Properties**, add:
+   - `GARMIN_PERSONAL_API_KEY`: `<your-api-key>`
+   - `WEBHOOK_SECRET`: `<a-strong-random-token>`
+3. Click **Deploy → New deployment → Web app** (*Execute as: Me*, *Who has access: Anyone*).
+4. Call your endpoint from n8n, Dify, ChatGPT Actions, or any agent:
+   - Lightweight brief:
+     `GET https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?secret=<WEBHOOK_SECRET>`
+   - Full flagship context (Sleep + HRV + Calories + Workout):
+     `GET https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?secret=<WEBHOOK_SECRET>&mode=full`
 
-  const tz = 'Asia/Taipei';
-  const today = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
-  const yesterday = Utilities.formatDate(new Date(Date.now() - 86400000), tz, 'yyyy-MM-dd');
-  const url = `https://personal.connectapi.garmin.com/usersummary-service/v2/dailysummaries?startDate=${yesterday}&endDate=${today}`;
-
-  let token = getGarminToken_(false);
-  let res = UrlFetchApp.fetch(url, {
-    method: 'get',
-    headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' },
-    muteHttpExceptions: true
-  });
-
-  if (res.getResponseCode() === 401) {
-    token = getGarminToken_(true);
-    res = UrlFetchApp.fetch(url, {
-      method: 'get',
-      headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' },
-      muteHttpExceptions: true
-    });
-  }
-
-  if (res.getResponseCode() !== 200) return '（Garmin read failed）';
-  const json = JSON.parse(res.getContentText());
-  const list = json.data || [];
-  const d = list[list.length - 1] || {};
-  const steps = d.movement?.steps?.value ?? '-';
-  const rhr = d.heartRate?.restingValue ?? '-';
-  const stress = d.stress?.avgLevel ?? '-';
-  const bbNow = d.bodyBattery?.latestValue ?? '-';
-  const bbMax = d.bodyBattery?.maxValue ?? '-';
-
-  const dateLabel = d.calendarDate || today;
-  const summary = `[${dateLabel}] Steps ${steps} | RHR ${rhr} | Stress ${stress} | Body Battery ${bbNow}/${bbMax}`;
-  cache.put('GARMIN_SUMMARY_V2', summary, 900); // Cache for 15 minutes
-  return summary;
+Example JSON response:
+```json
+{
+  "ok": true,
+  "mode": "summary",
+  "summary": "[2026-11-14] 步數 6500｜靜息心率 58｜壓力 22｜身體電量 78/95"
 }
 ```
 
-> Note: Adjust `tz` (default `Asia/Taipei`) and the summary string format in [`garmin-health.js`](./garmin-health.js) to match your preferred timezone and language.
-
-## 🌐 Optional: Expose as a Serverless Webhook for Other AI Agents
-
-Because Google Apps Script can be deployed as a stateless HTTPS Web App, you can also expose `garmin-health.js` as a zero-cost JSON endpoint for **n8n, Make, Dify, Coze, ChatGPT Actions, or custom AI agents**:
-
-1. In **Project Settings → Script Properties**, add `WEBHOOK_SECRET` with a strong random token.
-2. [`garmin-health.js`](./garmin-health.js) already includes a `doGet(e)` handler:
-```javascript
-function doGet(e) {
-  const secret = PropertiesService.getScriptProperties().getProperty('WEBHOOK_SECRET');
-  if (!secret || e?.parameter?.secret !== secret) {
-    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Unauthorized' }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-  return ContentService.createTextOutput(JSON.stringify({
-    ok: true,
-    summary: getGarminSummary()
-  })).setMimeType(ContentService.MimeType.JSON);
-}
-```
-3. Click **Deploy → New deployment → Web app** (*Execute as: Me*, *Who has access: Anyone*), then call:
-   `GET https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?secret=<YOUR_WEBHOOK_SECRET>`
+> Note: Adjust `tz` (default `Asia/Taipei`) and output labels in [`garmin-health.js`](./garmin-health.js) to match your preferred timezone and language.
 
 ## 📄 License
 [MIT License](./LICENSE)
