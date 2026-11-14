@@ -1,23 +1,27 @@
-# ⌚ Garmin Connect 生理體徵直通 AI Agent (GAS 版)
+# ⌚ Garmin Connect Health Context for AI Agents (GAS)
 
-> 透過 Garmin Personal API 自動抓取使用者的步數、心率、壓力、身體電量 (Body Battery)，直接注入 AI 的 System Prompt 潛意識！
-> 讓你的 AI 助理在開口時，能精準感知你今天到底累不累、壓力大不大！
+> English | [繁體中文](./README.zh-TW.md)
 
-## ✨ 核心特色
-- **自動換約快取**：Token 快取 6 小時，遇到 401 自動刷新重試。
-- **低負載設計**：體徵數據快取 15 分鐘，不頻繁敲擊 Garmin 伺服器。
-- **一行搞定 System Prompt**：直接輸出乾淨字串 `[2026-11-14] 步數 6500｜靜息心率 58｜壓力 22｜身體電量 78/95`。
+Pull real-time health metrics — **Steps, Resting Heart Rate, Stress, and Body Battery** — from the official **Garmin Personal API** and inject them straight into your AI Agent's System Prompt as a compact one-liner.  
+Let your AI assistant naturally sense how tired or stressed you are before it even says hello.
 
-## 🔑 事前準備
-1. 前往 Garmin Developer 申請取得個人的 `GARMIN_PERSONAL_API_KEY`。
-2. 在 Google Apps Script 的「專案設定 ➔ 指令碼屬性」中新增：
-   - 屬性名稱：`GARMIN_PERSONAL_API_KEY`
-   - 屬性值：你的 API Key
+## ✨ Features
+- **Auto-Refreshing Token Cache**: Caches the Bearer token for 6 hours and automatically retries on HTTP `401`.
+- **Low-Overhead Polling**: Caches health summaries for 15 minutes to avoid hammering Garmin's endpoints.
+- **One-Line System Prompt Injection**: Outputs a clean, token-efficient summary string like:  
+  `[2026-11-14] 步數 6500｜靜息心率 58｜壓力 22｜身體電量 78/95`
 
-## 💻 完整乾淨原始碼 (garmin-health.js)
+## 🔑 Prerequisites
+1. Generate your personal `GARMIN_PERSONAL_API_KEY` from **Garmin Connect Web → Settings → Personal API Key**.
+2. In your Google Apps Script project, go to **Project Settings → Script Properties** and add:
+   - Property: `GARMIN_PERSONAL_API_KEY`
+   - Value: `<your-api-key>`
+
+## 💻 Source Code ([`garmin-health.js`](./garmin-health.js))
+
 ```javascript
 /**
- * ⌚ Garmin 手錶即時體徵數據模組 (去敏通用版)
+ * ⌚ Garmin Watch Real-Time Health Metrics Module (GAS)
  */
 
 function getGarminToken_(forceRefresh) {
@@ -28,13 +32,13 @@ function getGarminToken_(forceRefresh) {
   }
 
   const apiKey = PropertiesService.getScriptProperties().getProperty('GARMIN_PERSONAL_API_KEY');
-  if (!apiKey) throw new Error('缺少 GARMIN_PERSONAL_API_KEY 屬性');
+  if (!apiKey) throw new Error('Missing GARMIN_PERSONAL_API_KEY in ScriptProperties');
 
   const res = UrlFetchApp.fetch(
     'https://personal.connectapi.garmin.com/personalapitoken-service/personal-api/personal-api-key/token',
     { method: 'post', headers: { 'Authorization': 'ApiKey ' + apiKey }, muteHttpExceptions: true }
   );
-  if (res.getResponseCode() !== 200) throw new Error('Garmin 換 Token 失敗: ' + res.getContentText());
+  if (res.getResponseCode() !== 200) throw new Error('Garmin token exchange failed: ' + res.getContentText());
 
   let token = res.getContentText().trim();
   try {
@@ -42,7 +46,7 @@ function getGarminToken_(forceRefresh) {
     token = parsed.access_token || parsed.token || token;
   } catch (e) {}
 
-  cache.put('GARMIN_ACCESS_TOKEN', token, 21600); // 快取 6 小時
+  cache.put('GARMIN_ACCESS_TOKEN', token, 21600); // Cache for 6 hours
   return token;
 }
 
@@ -72,7 +76,7 @@ function getGarminSummary() {
     });
   }
 
-  if (res.getResponseCode() !== 200) return '（Garmin 讀取失敗）';
+  if (res.getResponseCode() !== 200) return '（Garmin read failed）';
   const json = JSON.parse(res.getContentText());
   const list = json.data || [];
   const d = list[list.length - 1] || {};
@@ -83,11 +87,13 @@ function getGarminSummary() {
   const bbMax = d.bodyBattery?.maxValue ?? '-';
 
   const dateLabel = d.calendarDate || today;
-  const summary = `[${dateLabel}] 步數 ${steps}｜靜息心率 ${rhr}｜壓力 ${stress}｜身體電量 ${bbNow}/${bbMax}`;
-  cache.put('GARMIN_SUMMARY_V2', summary, 900); // 快取 15 分鐘
+  const summary = `[${dateLabel}] Steps ${steps} | RHR ${rhr} | Stress ${stress} | Body Battery ${bbNow}/${bbMax}`;
+  cache.put('GARMIN_SUMMARY_V2', summary, 900); // Cache for 15 minutes
   return summary;
 }
 ```
 
+> Note: Adjust `tz` (default `Asia/Taipei`) and the summary string format in [`garmin-health.js`](./garmin-health.js) to match your preferred timezone and language.
+
 ## 📄 License
-MIT License
+[MIT License](./LICENSE)
